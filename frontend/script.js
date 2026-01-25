@@ -18,45 +18,37 @@ let socket = null;
 let currentUser = '';
 let currentRoom = '';
 
-function formatTime(date) {
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
-
 function scrollToBottom() {
   chatMessages.scrollTop = chatMessages.scrollHeight;
-}
-
-function addMessage(data) {
-  const isOwn = data.sender === currentUser;
-  const isSystem = data.type === 'system';
-
-  if (isSystem) {
-    const systemMsg = document.createElement('div');
-    systemMsg.className = 'system-message';
-    systemMsg.innerHTML = `<span>${escapeHtml(data.message)}</span>`;
-    chatMessages.appendChild(systemMsg);
-  } else {
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `message ${isOwn ? 'own' : 'other'}`;
-    
-    const time = formatTime(new Date(data.timestamp || Date.now()));
-    
-    messageDiv.innerHTML = `
-      ${!isOwn ? `<span class="message-sender">${escapeHtml(data.sender)}</span>` : ''}
-      <div class="message-bubble">${escapeHtml(data.message)}</div>
-      <span class="message-time">${time}</span>
-    `;
-    
-    chatMessages.appendChild(messageDiv);
-  }
-
-  scrollToBottom();
 }
 
 function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
+}
+
+function addChatMessage(username, message) {
+  const isOwn = username === currentUser;
+
+  const messageDiv = document.createElement('div');
+  messageDiv.className = `message ${isOwn ? 'own' : 'other'}`;
+
+  messageDiv.innerHTML = `
+    ${!isOwn ? `<span class="message-sender">${escapeHtml(username)}</span>` : ''}
+    <div class="message-bubble">${escapeHtml(message)}</div>
+  `;
+
+  chatMessages.appendChild(messageDiv);
+  scrollToBottom();
+}
+
+function addSystemMessage(text) {
+  const systemMsg = document.createElement('div');
+  systemMsg.className = 'system-message';
+  systemMsg.innerHTML = `<span>${escapeHtml(text)}</span>`;
+  chatMessages.appendChild(systemMsg);
+  scrollToBottom();
 }
 
 function updateConnectionStatus(connected) {
@@ -69,92 +61,44 @@ function updateConnectionStatus(connected) {
   }
 }
 
-function showChat() {
-  joinScreen.classList.add('hidden');
-  chatScreen.classList.remove('hidden');
-  messageInput.focus();
-}
-
-function showJoin() {
-  chatScreen.classList.add('hidden');
-  joinScreen.classList.remove('hidden');
-  chatMessages.innerHTML = `
-    <div class="welcome-message">
-      <p>Welcome aboard! Messages are temporary and will disappear when everyone leaves.</p>
-    </div>
-  `;
-}
-
 function connectSocket() {
-  socket = io(SOCKET_URL, {
-    transports: ['websocket', 'polling'],
-    reconnection: true,
-    reconnectionAttempts: 5,
-    reconnectionDelay: 1000
-  });
+  socket = io(SOCKET_URL);
 
   socket.on('connect', () => {
-    console.log('Connected to server');
     updateConnectionStatus(true);
   });
 
   socket.on('disconnect', () => {
-    console.log('Disconnected from server');
-    updateConnectionStatus(false);
-  });
-
-  socket.on('connect_error', (error) => {
-    console.error('Connection error:', error);
     updateConnectionStatus(false);
   });
 
   socket.on('chat-message', (data) => {
-    addMessage({
-      sender: data.sender,
-      message: data.message,
-      timestamp: data.timestamp,
-      type: 'chat'
-    });
+    addChatMessage(data.username, data.message);
   });
 
   socket.on('system-message', (data) => {
-    addMessage({
-      message: data.message,
-      type: 'system'
-    });
-
-    if (data.passengers !== undefined) {
-      updatePassengerCount(data.passengers);
-    }
-  });
-
-  socket.on('room-info', (data) => {
-    if (data.passengers !== undefined) {
-      updatePassengerCount(data.passengers);
-    }
+    addSystemMessage(data.message);
   });
 }
 
-function updatePassengerCount(count) {
-  passengersCount.textContent = `${count} passenger${count !== 1 ? 's' : ''}`;
-}
-
-function joinRoom(nickname, roomId) {
-  currentUser = nickname;
+function joinRoom(username, roomId) {
+  currentUser = username;
   currentRoom = roomId;
-  
+
   roomTitle.textContent = roomId;
-  
-  if (!socket || !socket.connected) {
-    connectSocket();
-    socket.on('connect', () => {
-      socket.emit('join-room', { nickname, roomId });
+
+  connectSocket();
+
+  socket.on('connect', () => {
+    socket.emit('join-room', {
+      roomId: currentRoom,
+      username: currentUser
     });
-  } else {
-    socket.emit('join-room', { nickname, roomId });
-  }
-  
-  showChat();
+  });
+
+  joinScreen.classList.add('hidden');
+  chatScreen.classList.remove('hidden');
+  messageInput.focus();
 }
 
 function leaveRoom() {
@@ -162,52 +106,47 @@ function leaveRoom() {
     socket.disconnect();
     socket = null;
   }
+
   currentUser = '';
   currentRoom = '';
-  showJoin();
+
+  chatMessages.innerHTML = `
+    <div class="welcome-message">
+      <p>Welcome aboard! Messages are temporary and will disappear when everyone leaves.</p>
+    </div>
+  `;
+
+  chatScreen.classList.add('hidden');
+  joinScreen.classList.remove('hidden');
 }
 
-function sendMessage(message) {
-  if (!socket || !socket.connected) {
-    console.error('Not connected to server');
-    return;
-  }
+function sendMessage() {
+  const message = messageInput.value.trim();
+  if (!message || !socket) return;
 
   socket.emit('send-message', {
-    message: message,
-    sender: currentUser,
-    roomId: currentRoom
+    roomId: currentRoom,
+    username: currentUser,
+    message: message
   });
 
-  addMessage({
-    sender: currentUser,
-    message: message,
-    timestamp: Date.now(),
-    type: 'chat'
-  });
+  messageInput.value = '';
 }
 
 joinForm.addEventListener('submit', (e) => {
   e.preventDefault();
-  
+
   const nickname = nicknameInput.value.trim();
   const roomId = roomIdInput.value.trim();
-  
-  if (nickname && roomId) {
-    joinRoom(nickname, roomId);
-  }
+
+  if (!nickname || !roomId) return;
+
+  joinRoom(nickname, roomId);
 });
 
 messageForm.addEventListener('submit', (e) => {
   e.preventDefault();
-  
-  const message = messageInput.value.trim();
-  
-  if (message) {
-    sendMessage(message);
-    messageInput.value = '';
-    messageInput.focus();
-  }
+  sendMessage();
 });
 
 leaveBtn.addEventListener('click', () => {
