@@ -2,18 +2,18 @@ const { joinRoom, leaveRoom } = require("./room");
 
 module.exports = function (io) {
   io.on("connection", (socket) => {
-    console.log("User connected:", socket.id);
 
     socket.on("join-room", ({ roomId, username }) => {
       socket.join(roomId);
-      joinRoom(roomId, socket.id);
+      const count = joinRoom(roomId, socket.id);
 
       io.to(roomId).emit("system-message", {
-        message: `${username} joined the train`
+        message: `${username} joined the train`,
+        passengers: count
       });
     });
 
-    socket.on("send-message", ({ roomId, message, username }) => {
+    socket.on("send-message", ({ roomId, username, message }) => {
       io.to(roomId).emit("chat-message", {
         username,
         message
@@ -21,8 +21,14 @@ module.exports = function (io) {
     });
 
     socket.on("disconnect", () => {
-      leaveRoom(socket.id);
-      console.log("User disconnected:", socket.id);
+      const result = leaveRoom(socket.id);
+      if (!result) return;
+
+      io.to(result.roomId).emit("system-message", {
+        message: `A passenger left the train`,
+        passengers: result.size
+      });
     });
+
   });
 };
