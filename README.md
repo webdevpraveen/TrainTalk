@@ -42,7 +42,7 @@ This is a **moment-based communication tool**.
 ## 🔁 How It Works (_Flow_)
 
 1. User opens TrainTalk
-2. Enters their **PNR number** (to confirm to joined room)
+2. Enters a train-based room identifier (Train Number + Journey Date)
 3. Backend extracts:
    - Train Number
    - Journey Date
@@ -58,8 +58,9 @@ This is a **moment-based communication tool**.
 ## 🛠 Tech Stack
 
 ### Frontend
-- **Next.js**
-- HTML / CSS 
+- HTML
+- CSS
+- Vanilla JavaScript
 
 ### Backend
 - **Node.js**
