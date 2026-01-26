@@ -14,6 +14,9 @@ const leaveBtn = document.getElementById('leave-btn');
 const connectionStatus = document.getElementById('connection-status');
 const sendBtn = document.getElementById('send-btn');
 
+const trainNoInput = document.getElementById('train-no');
+const dateInput = document.getElementById('journey-date');
+
 let socket = null;
 let currentUser = '';
 let currentRoom = '';
@@ -28,26 +31,30 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
+function updatePassengerCount(count) {
+  passengersCount.textContent = `${count} passenger${count !== 1 ? 's' : ''}`;
+}
+
 function addChatMessage(username, message) {
   const isOwn = username === currentUser;
 
-  const messageDiv = document.createElement('div');
-  messageDiv.className = `message ${isOwn ? 'own' : 'other'}`;
+  const div = document.createElement('div');
+  div.className = `message ${isOwn ? 'own' : 'other'}`;
 
-  messageDiv.innerHTML = `
+  div.innerHTML = `
     ${!isOwn ? `<span class="message-sender">${escapeHtml(username)}</span>` : ''}
     <div class="message-bubble">${escapeHtml(message)}</div>
   `;
 
-  chatMessages.appendChild(messageDiv);
+  chatMessages.appendChild(div);
   scrollToBottom();
 }
 
 function addSystemMessage(text) {
-  const systemMsg = document.createElement('div');
-  systemMsg.className = 'system-message';
-  systemMsg.innerHTML = `<span>${escapeHtml(text)}</span>`;
-  chatMessages.appendChild(systemMsg);
+  const div = document.createElement('div');
+  div.className = 'system-message';
+  div.innerHTML = `<span>${escapeHtml(text)}</span>`;
+  chatMessages.appendChild(div);
   scrollToBottom();
 }
 
@@ -61,16 +68,20 @@ function updateConnectionStatus(connected) {
   }
 }
 
+function buildRoomId() {
+  const trainNo = trainNoInput?.value.trim();
+  const date = dateInput?.value;
+  if (trainNo && date) {
+    return `train_${trainNo}_${date}`;
+  }
+  return roomIdInput.value.trim();
+}
+
 function connectSocket() {
   socket = io(SOCKET_URL);
 
-  socket.on('connect', () => {
-    updateConnectionStatus(true);
-  });
-
-  socket.on('disconnect', () => {
-    updateConnectionStatus(false);
-  });
+  socket.on('connect', () => updateConnectionStatus(true));
+  socket.on('disconnect', () => updateConnectionStatus(false));
 
   socket.on('chat-message', (data) => {
     addChatMessage(data.username, data.message);
@@ -78,6 +89,9 @@ function connectSocket() {
 
   socket.on('system-message', (data) => {
     addSystemMessage(data.message);
+    if (data.passengers !== undefined) {
+      updatePassengerCount(data.passengers);
+    }
   });
 }
 
@@ -107,9 +121,6 @@ function leaveRoom() {
     socket = null;
   }
 
-  currentUser = '';
-  currentRoom = '';
-
   chatMessages.innerHTML = `
     <div class="welcome-message">
       <p>Welcome aboard! Messages are temporary and will disappear when everyone leaves.</p>
@@ -127,7 +138,7 @@ function sendMessage() {
   socket.emit('send-message', {
     roomId: currentRoom,
     username: currentUser,
-    message: message
+    message
   });
 
   messageInput.value = '';
@@ -137,7 +148,7 @@ joinForm.addEventListener('submit', (e) => {
   e.preventDefault();
 
   const nickname = nicknameInput.value.trim();
-  const roomId = roomIdInput.value.trim();
+  const roomId = buildRoomId();
 
   if (!nickname || !roomId) return;
 
@@ -149,8 +160,10 @@ messageForm.addEventListener('submit', (e) => {
   sendMessage();
 });
 
-leaveBtn.addEventListener('click', () => {
-  leaveRoom();
+leaveBtn.addEventListener('click', leaveRoom);
+
+window.addEventListener('beforeunload', () => {
+  if (socket) socket.disconnect();
 });
 
 messageInput.addEventListener('input', () => {
