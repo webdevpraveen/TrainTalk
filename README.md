@@ -29,44 +29,47 @@ This is a **moment-based communication tool**.
 
 ## ✨ Key Features
 
--  No login / no signup
--  No chat storage
--  Real-time messaging using Socket.io
--  Automatic train-based chat rooms
--  Minimal spam protection
--  Privacy-first design
--  Temporary sessions (auto-expire when journey end)
+-  **Zero Setup**: No login, no signup, no accounts required.
+-  **Zero Storage**: PNRs are verified and discarded. Messages are never saved, persisted, or logged.
+-  **Real-Time Live Train Status**: Check your train's live arrival, departure, and delay information in a beautiful, dynamic native-app style modal.
+-  **Automatic Rooms**: Rooms are generated automatically based on your Train Number and Journey Date.
+-  **Premium UI**: Features a sleek glassmorphism design, dark mode chat, and animated live tracking timelines.
+-  **Anonymity-First**: Chat using a temporary nickname.
+-  **Spam Protection**: Message rate limiting, PNR verification rate-limiting, and max connection caps.
 
 ---
 
 ## 🔁 How It Works (_Flow_)
 
 1. User opens TrainTalk
-2. Enters a train-based room identifier (Train Number + Journey Date)
-3. Backend extracts:
+2. Enters their 10-digit **PNR**
+3. Backend verifies the PNR securely via **RapidAPI IRCTC api**
+4. Backend extracts:
    - Train Number
    - Journey Date
-4. A temporary chat room is generated:
+5. A temporary, secure session token is assigned to the client.
+6. A temporary chat room is generated:
    `train_<TRAIN_NUMBER>_<DATE>`
-   
-5. User joins the room and starts chatting
-6. Closing the tab disconnects the user
-7. No messages are saved anywhere
+7. User joins the room and starts chatting.
+8. User can check the **Live Train Status** natively inside the chat room.
+9. Disconnecting from the socket automatically leaves the room. No history is kept.
 
 ---
 
 ## 🛠 Tech Stack
 
 ### Frontend
-- HTML
-- CSS
+- HTML5
+- CSS3 (Custom properties, Flexbox/Grid, Animations, Glassmorphism)
 - Vanilla JavaScript
+- Socket.io-client
 
 ### Backend
 - **Node.js**
 - **Express.js**
-- **Socket.io**
-  
+- **Socket.io** (WebSockets)
+- **Axios** (for RapidAPI calls)
+
 ---
 
 ## 🔐 Privacy & Safety _Philosophy_
@@ -76,40 +79,48 @@ TrainTalk intentionally avoids collecting or storing personal data.
 - PNR is used **only for one-time validation**
 - PNR is **never stored**
 - Messages are not saved
-- No user account needed
+- No user account or identifying data needed
+- UUID-based temporary memory sessions ensure connection validity without persistence.
 
 TrainTalk is designed to be **safe, temporary, and anonymous**.
 
 ---
 
-## 🚨 Basic Abuse Prevention System
+## 🚨 Abuse Prevention & Security
 
-To keep chats usable:
-
-- Message length limits
-- Rate limiting (anti-spam)
-- Temporary mute on excessive reports
-- No admin, no moderation panel
+To keep chats usable and secure, the system enforces:
+- **Rate limiting (PNR)**: Max 5 validations per hour per IP.
+- **Message limits**: 1 message per second.
+- **Connection caps**: 1 active socket per session to prevent multi-tab spamming.
+- **Length limits**: Messages are capped at 500 characters.
 
 ---
 
-## 🧪 Project Status
+## ⚙️ How to Run Locally
 
-🟡 In Development (MVP Stage)
+You will need a RapidAPI key from the IRCTC API (or you can use the built-in developer dummy PNRs like `1111111111`).
 
-Planned next steps:
-  Stable room lifecycle
-  Improved spam control
-  Coach-based sub rooms (_future_)
-  
-  ---
+```bash
+# 1. Clone the repository
+git clone https://github.com/webdevpraveen/TrainTalk.git
+
+# 2. Setup environment
+cp .env.example .env
+# Edit .env and add your RAPIDAPI_KEY
+
+# 3. Install dependencies & start
+cd backend
+npm install
+npm run dev
+
+# The server will run at http://localhost:3000
+```
+
+---
 
 ## ⚠️ Disclaimer
 
-TrainTalk is an independent experimental project.
-It is not affiliated with IRCTC or Indian Railways.
+TrainTalk is an independent experimental project.  
+It is **not** affiliated with IRCTC or Indian Railways.
 
 This project is built for educational and fun purposes only.
-
-
-
