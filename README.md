@@ -8,6 +8,7 @@ No chat history.
 No digital footprint.  
 Just passengers, sharing a journey.
 
+
 ---
 
 ## 🧠 Idea Behind TrainTalk
